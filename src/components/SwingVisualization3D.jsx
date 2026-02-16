@@ -3,120 +3,285 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, Line } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Animated 3D golfer stick figure with swing path
+// Helper: renders a capsule-shaped limb connecting two 3D points
+function Limb({ start, end, radius = 0.04, color = '#00e676', roughness = 0.5, metalness = 0.15 }) {
+  const { position, quaternion, length } = useMemo(() => {
+    const s = new THREE.Vector3(...start);
+    const e = new THREE.Vector3(...end);
+    const mid = new THREE.Vector3().lerpVectors(s, e, 0.5);
+    const dir = new THREE.Vector3().subVectors(e, s);
+    const len = dir.length();
+    dir.normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    return {
+      position: [mid.x, mid.y, mid.z],
+      quaternion: quat,
+      length: Math.max(0.001, len - radius * 2),
+    };
+  }, [start, end, radius]);
+
+  return (
+    <mesh position={position} quaternion={quaternion}>
+      <capsuleGeometry args={[radius, length, 4, 12]} />
+      <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} />
+    </mesh>
+  );
+}
+
+// Animated 3D human golfer holding a driver
 function GolferModel({ swingProfile, animationSpeed = 1, color = '#00e676' }) {
   const groupRef = useRef();
   const clubRef = useRef();
+  const leftForearmRef = useRef();
   const swingPhaseRef = useRef(0);
 
-  // Swing animation
+  const bodyColor = color;
+  const jointColor = '#e0e0e0';
+  const shoeColor = '#1a1a2e';
+  const gripColor = '#2a2a2a';
+  const shaftColor = '#c0c0c0';
+  const driverColor = '#333333';
+
   useFrame((state, delta) => {
     swingPhaseRef.current += delta * animationSpeed * 0.8;
     const phase = swingPhaseRef.current % (Math.PI * 2);
 
     if (groupRef.current && clubRef.current) {
-      // Swing the club in an arc
+      // Club/right arm swing arc
       const swingAngle = Math.sin(phase) * 1.5;
       clubRef.current.rotation.z = swingAngle - 0.3;
       clubRef.current.rotation.x = Math.sin(phase * 0.5) * 0.3;
 
-      // Body rotation
+      // Body rotation (coil/uncoil)
       const bodyRotation = Math.sin(phase) * 0.25 * (swingProfile?.hipRotation || 80) / 100;
       groupRef.current.rotation.y = bodyRotation;
 
       // Weight shift
       groupRef.current.position.x = Math.sin(phase) * 0.05;
+
+      // Left forearm follows swing subtly
+      if (leftForearmRef.current) {
+        leftForearmRef.current.rotation.z = Math.sin(phase) * 0.2;
+        leftForearmRef.current.rotation.x = Math.sin(phase * 0.5) * 0.12;
+      }
     }
   });
 
-  const bodyColor = color;
-  const jointColor = '#ffffff';
-
   return (
     <group ref={groupRef} position={[0, -1.2, 0]}>
-      {/* Head */}
-      <mesh position={[0, 2.6, 0]}>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshStandardMaterial color={jointColor} />
+
+      {/* ===== HEAD ===== */}
+      <mesh position={[0, 2.52, -0.02]}>
+        <sphereGeometry args={[0.14, 16, 16]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.4} metalness={0.1} />
       </mesh>
 
-      {/* Neck */}
-      <Line points={[[0, 2.45, 0], [0, 2.3, 0]]} color={bodyColor} lineWidth={3} />
-
-      {/* Torso */}
-      <Line points={[[0, 2.3, 0], [0, 1.5, 0]]} color={bodyColor} lineWidth={4} />
-
-      {/* Shoulders */}
-      <Line points={[[-0.35, 2.2, 0], [0.35, 2.2, 0]]} color={bodyColor} lineWidth={3} />
-
-      {/* Left arm */}
-      <Line points={[[-0.35, 2.2, 0], [-0.5, 1.8, 0.1]]} color={bodyColor} lineWidth={3} />
-      <Line points={[[-0.5, 1.8, 0.1], [-0.4, 1.5, 0.15]]} color={bodyColor} lineWidth={3} />
-      <mesh position={[-0.35, 2.2, 0]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color={jointColor} />
+      {/* Golf cap - crown */}
+      <mesh position={[0, 2.64, -0.01]} scale={[1, 0.55, 1]}>
+        <sphereGeometry args={[0.145, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color={shoeColor} roughness={0.8} />
+      </mesh>
+      {/* Golf cap - brim */}
+      <mesh position={[0, 2.635, 0.06]} rotation={[-0.25, 0, 0]}>
+        <cylinderGeometry args={[0.17, 0.19, 0.015, 16, 1, false, -Math.PI / 2, Math.PI]} />
+        <meshStandardMaterial color={shoeColor} roughness={0.8} />
       </mesh>
 
-      {/* Right arm + club group */}
-      <group ref={clubRef} position={[0.35, 2.2, 0]}>
-        <mesh>
-          <sphereGeometry args={[0.05, 8, 8]} />
-          <meshStandardMaterial color={jointColor} />
+      {/* ===== NECK ===== */}
+      <Limb start={[0, 2.38, -0.01]} end={[0, 2.26, 0]} radius={0.055} color={bodyColor} />
+
+      {/* ===== TORSO ===== */}
+      {/* Chest - broad, slightly flattened front-to-back */}
+      <mesh position={[0, 2.05, 0.01]} scale={[1.35, 1, 0.85]}>
+        <capsuleGeometry args={[0.13, 0.22, 4, 12]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.5} metalness={0.15} />
+      </mesh>
+      {/* Abdomen - slightly narrower */}
+      <mesh position={[0, 1.78, 0.015]} scale={[1.15, 1, 0.85]}>
+        <capsuleGeometry args={[0.11, 0.15, 4, 12]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.5} metalness={0.15} />
+      </mesh>
+      {/* Pelvis / hip region */}
+      <mesh position={[0, 1.56, 0.01]} scale={[1.35, 0.8, 0.85]}>
+        <capsuleGeometry args={[0.1, 0.06, 4, 12]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.5} metalness={0.15} />
+      </mesh>
+
+      {/* ===== SHOULDERS ===== */}
+      <mesh position={[-0.28, 2.22, 0]}>
+        <sphereGeometry args={[0.075, 12, 12]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.4} metalness={0.15} />
+      </mesh>
+      <mesh position={[0.28, 2.22, 0]}>
+        <sphereGeometry args={[0.075, 12, 12]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.4} metalness={0.15} />
+      </mesh>
+
+      {/* ===== LEFT ARM ===== */}
+      {/* Upper arm */}
+      <Limb start={[-0.28, 2.22, 0]} end={[-0.42, 1.86, 0.1]} radius={0.05} color={bodyColor} />
+      {/* Elbow */}
+      <mesh position={[-0.42, 1.86, 0.1]}>
+        <sphereGeometry args={[0.046, 10, 10]} />
+        <meshStandardMaterial color={jointColor} roughness={0.3} metalness={0.1} />
+      </mesh>
+      {/* Forearm + hand (animated group pivoting at elbow) */}
+      <group ref={leftForearmRef} position={[-0.42, 1.86, 0.1]}>
+        <Limb start={[0, 0, 0]} end={[0.1, -0.34, 0.1]} radius={0.042} color={bodyColor} />
+        {/* Wrist */}
+        <mesh position={[0.1, -0.34, 0.1]}>
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <meshStandardMaterial color={jointColor} roughness={0.3} />
         </mesh>
-        {/* Upper arm */}
-        <Line points={[[0, 0, 0], [0.15, -0.4, 0.1]]} color={bodyColor} lineWidth={3} />
-        {/* Forearm */}
-        <Line points={[[0.15, -0.4, 0.1], [0.05, -0.7, 0.15]]} color={bodyColor} lineWidth={3} />
-        {/* Club shaft */}
-        <Line points={[[0.05, -0.7, 0.15], [0.0, -1.5, 0.2]]} color="#cccccc" lineWidth={2} />
-        {/* Club head */}
-        <mesh position={[0.0, -1.5, 0.2]}>
-          <boxGeometry args={[0.08, 0.04, 0.12]} />
-          <meshStandardMaterial color="#888888" metalness={0.8} roughness={0.2} />
+        {/* Hand */}
+        <mesh position={[0.12, -0.4, 0.12]} scale={[0.8, 1.1, 0.6]}>
+          <sphereGeometry args={[0.04, 10, 10]} />
+          <meshStandardMaterial color={bodyColor} roughness={0.45} />
         </mesh>
       </group>
 
-      {/* Hips */}
-      <Line points={[[-0.2, 1.5, 0], [0.2, 1.5, 0]]} color={bodyColor} lineWidth={3} />
+      {/* ===== RIGHT ARM + CLUB (swing group) ===== */}
+      <group ref={clubRef} position={[0.28, 2.22, 0]}>
+        {/* Upper arm */}
+        <Limb start={[0, 0, 0]} end={[0.14, -0.36, 0.1]} radius={0.05} color={bodyColor} />
+        {/* Elbow */}
+        <mesh position={[0.14, -0.36, 0.1]}>
+          <sphereGeometry args={[0.046, 10, 10]} />
+          <meshStandardMaterial color={jointColor} roughness={0.3} metalness={0.1} />
+        </mesh>
+        {/* Forearm */}
+        <Limb start={[0.14, -0.36, 0.1]} end={[0.05, -0.66, 0.18]} radius={0.042} color={bodyColor} />
+        {/* Wrist */}
+        <mesh position={[0.05, -0.66, 0.18]}>
+          <sphereGeometry args={[0.035, 8, 8]} />
+          <meshStandardMaterial color={jointColor} roughness={0.3} />
+        </mesh>
+        {/* Hand */}
+        <mesh position={[0.04, -0.72, 0.2]} scale={[0.8, 1.1, 0.6]}>
+          <sphereGeometry args={[0.04, 10, 10]} />
+          <meshStandardMaterial color={bodyColor} roughness={0.45} />
+        </mesh>
 
-      {/* Left leg */}
-      <Line points={[[-0.2, 1.5, 0], [-0.25, 0.9, 0]]} color={bodyColor} lineWidth={3} />
-      <Line points={[[-0.25, 0.9, 0], [-0.2, 0.3, 0]]} color={bodyColor} lineWidth={3} />
-      <mesh position={[-0.2, 1.5, 0]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color={jointColor} />
+        {/* ===== GOLF DRIVER ===== */}
+        {/* Grip (rubber) */}
+        <Limb
+          start={[0.035, -0.74, 0.2]}
+          end={[0.02, -0.98, 0.22]}
+          radius={0.016}
+          color={gripColor}
+          roughness={0.95}
+          metalness={0}
+        />
+        {/* Shaft (chrome) */}
+        <Limb
+          start={[0.02, -0.98, 0.22]}
+          end={[0.0, -1.6, 0.28]}
+          radius={0.01}
+          color={shaftColor}
+          roughness={0.15}
+          metalness={0.85}
+        />
+        {/* Hosel (connection piece) */}
+        <mesh position={[0.0, -1.6, 0.28]}>
+          <cylinderGeometry args={[0.015, 0.012, 0.04, 8]} />
+          <meshStandardMaterial color="#555555" roughness={0.2} metalness={0.9} />
+        </mesh>
+        {/* Driver head - large, metallic, rounded */}
+        <group position={[0.0, -1.64, 0.29]} rotation={[0.3, 0.1, 0.15]}>
+          {/* Head body */}
+          <mesh scale={[1.15, 0.5, 1]}>
+            <sphereGeometry args={[0.1, 16, 16]} />
+            <meshStandardMaterial color={driverColor} roughness={0.1} metalness={0.92} />
+          </mesh>
+          {/* Face - slightly lighter, flat */}
+          <mesh position={[0, 0, 0.095]} scale={[1.05, 0.8, 1]}>
+            <circleGeometry args={[0.075, 16]} />
+            <meshStandardMaterial color="#555555" roughness={0.25} metalness={0.8} />
+          </mesh>
+          {/* Crown accent line */}
+          <mesh position={[0, 0.04, -0.02]} rotation={[Math.PI / 2, 0, 0]} scale={[1.1, 0.8, 1]}>
+            <torusGeometry args={[0.06, 0.003, 4, 24, Math.PI]} />
+            <meshStandardMaterial color="#00e676" roughness={0.3} metalness={0.5} emissive="#00e676" emissiveIntensity={0.3} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* ===== LEFT LEG ===== */}
+      {/* Hip joint */}
+      <mesh position={[-0.17, 1.52, 0]}>
+        <sphereGeometry args={[0.06, 10, 10]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.4} metalness={0.15} />
       </mesh>
-      <mesh position={[-0.25, 0.9, 0]}>
+      {/* Thigh */}
+      <Limb start={[-0.17, 1.52, 0]} end={[-0.22, 0.96, 0.04]} radius={0.065} color={bodyColor} />
+      {/* Knee */}
+      <mesh position={[-0.22, 0.96, 0.04]}>
+        <sphereGeometry args={[0.055, 10, 10]} />
+        <meshStandardMaterial color={jointColor} roughness={0.3} metalness={0.1} />
+      </mesh>
+      {/* Calf */}
+      <Limb start={[-0.22, 0.96, 0.04]} end={[-0.20, 0.4, 0]} radius={0.05} color={bodyColor} />
+      {/* Ankle */}
+      <mesh position={[-0.20, 0.4, 0]}>
         <sphereGeometry args={[0.04, 8, 8]} />
-        <meshStandardMaterial color={jointColor} />
+        <meshStandardMaterial color={jointColor} roughness={0.3} />
+      </mesh>
+      {/* Shoe */}
+      <mesh position={[-0.20, 0.32, 0.06]}>
+        <boxGeometry args={[0.11, 0.08, 0.22]} />
+        <meshStandardMaterial color={shoeColor} roughness={0.85} metalness={0.05} />
+      </mesh>
+      {/* Shoe sole */}
+      <mesh position={[-0.20, 0.28, 0.06]}>
+        <boxGeometry args={[0.115, 0.015, 0.225]} />
+        <meshStandardMaterial color="#111111" roughness={0.9} />
       </mesh>
 
-      {/* Right leg */}
-      <Line points={[[0.2, 1.5, 0], [0.25, 0.9, 0]]} color={bodyColor} lineWidth={3} />
-      <Line points={[[0.25, 0.9, 0], [0.2, 0.3, 0]]} color={bodyColor} lineWidth={3} />
-      <mesh position={[0.2, 1.5, 0]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
-        <meshStandardMaterial color={jointColor} />
+      {/* ===== RIGHT LEG ===== */}
+      {/* Hip joint */}
+      <mesh position={[0.17, 1.52, 0]}>
+        <sphereGeometry args={[0.06, 10, 10]} />
+        <meshStandardMaterial color={bodyColor} roughness={0.4} metalness={0.15} />
       </mesh>
-      <mesh position={[0.25, 0.9, 0]}>
+      {/* Thigh */}
+      <Limb start={[0.17, 1.52, 0]} end={[0.22, 0.96, 0.04]} radius={0.065} color={bodyColor} />
+      {/* Knee */}
+      <mesh position={[0.22, 0.96, 0.04]}>
+        <sphereGeometry args={[0.055, 10, 10]} />
+        <meshStandardMaterial color={jointColor} roughness={0.3} metalness={0.1} />
+      </mesh>
+      {/* Calf */}
+      <Limb start={[0.22, 0.96, 0.04]} end={[0.20, 0.4, 0]} radius={0.05} color={bodyColor} />
+      {/* Ankle */}
+      <mesh position={[0.20, 0.4, 0]}>
         <sphereGeometry args={[0.04, 8, 8]} />
-        <meshStandardMaterial color={jointColor} />
+        <meshStandardMaterial color={jointColor} roughness={0.3} />
+      </mesh>
+      {/* Shoe */}
+      <mesh position={[0.20, 0.32, 0.06]}>
+        <boxGeometry args={[0.11, 0.08, 0.22]} />
+        <meshStandardMaterial color={shoeColor} roughness={0.85} metalness={0.05} />
+      </mesh>
+      {/* Shoe sole */}
+      <mesh position={[0.20, 0.28, 0.06]}>
+        <boxGeometry args={[0.115, 0.015, 0.225]} />
+        <meshStandardMaterial color="#111111" roughness={0.9} />
       </mesh>
 
-      {/* Feet */}
-      <mesh position={[-0.2, 0.28, 0.06]}>
-        <boxGeometry args={[0.1, 0.04, 0.18]} />
-        <meshStandardMaterial color={bodyColor} />
-      </mesh>
-      <mesh position={[0.2, 0.28, 0.06]}>
-        <boxGeometry args={[0.1, 0.04, 0.18]} />
-        <meshStandardMaterial color={bodyColor} />
-      </mesh>
-
-      {/* Golf ball */}
-      <mesh position={[0.1, 0.3, 0.3]}>
-        <sphereGeometry args={[0.025, 12, 12]} />
-        <meshStandardMaterial color="white" />
+      {/* ===== GOLF BALL ON TEE ===== */}
+      {/* Tee */}
+      <Limb
+        start={[0.1, 0.28, 0.3]}
+        end={[0.1, 0.15, 0.3]}
+        radius={0.007}
+        color="#c4956a"
+        roughness={0.7}
+        metalness={0}
+      />
+      {/* Ball */}
+      <mesh position={[0.1, 0.31, 0.3]}>
+        <sphereGeometry args={[0.025, 16, 16]} />
+        <meshStandardMaterial color="white" roughness={0.35} metalness={0.05} />
       </mesh>
     </group>
   );
@@ -233,15 +398,17 @@ export default function SwingVisualization3D({
         camera={{ position: [3, 2, 4], fov: 45 }}
         style={{ background: 'linear-gradient(180deg, #0a1628 0%, #0d2818 100%)' }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 5, 5]} intensity={0.8} />
-        <pointLight position={[-3, 3, 2]} intensity={0.3} color="#00e676" />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 8, 5]} intensity={1.0} />
+        <directionalLight position={[-3, 4, -2]} intensity={0.25} color="#4488ff" />
+        <pointLight position={[-3, 3, 2]} intensity={0.4} color="#00e676" />
+        <pointLight position={[2, 1, -3]} intensity={0.15} color="#ff9800" />
 
         {/* Main golfer */}
         <GolferModel swingProfile={swingProfile} color="#00e676" />
         <SwingArc profile={swingProfile} color="#00e676" />
 
-        {/* Comparison golfer (semi-transparent) */}
+        {/* Comparison golfer */}
         {showComparison && comparisonProfile && (
           <>
             <group position={[0, 0, 0]} scale={[1, 1, 1]}>
