@@ -99,7 +99,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="home-footer">
         <p>
-          <span>&#9971;</span> Tee Time &mdash; Rally Your Foursome
+          <span>&#9971;</span> Gowf &mdash; Rally Your Foursome
         </p>
       </footer>
     </div>

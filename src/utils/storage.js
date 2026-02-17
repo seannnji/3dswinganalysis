@@ -1,5 +1,5 @@
-const ROUNDS_KEY = 'teetime_rounds';
-const USER_KEY = 'teetime_user';
+const ROUNDS_KEY = 'gowf_rounds';
+const USER_KEY = 'gowf_user';
 
 export function generateId() {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);

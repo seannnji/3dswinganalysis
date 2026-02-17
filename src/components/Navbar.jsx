@@ -11,7 +11,7 @@ export default function Navbar() {
       <div className="navbar-inner">
         <Link to="/" className="navbar-logo">
           <span className="logo-icon">&#9971;</span>
-          <span className="logo-text">Tee Time</span>
+          <span className="logo-text">Gowf</span>
         </Link>
 
         <div className={`navbar-links ${menuOpen ? 'open' : ''}`}>

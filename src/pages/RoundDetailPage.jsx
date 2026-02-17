@@ -30,7 +30,7 @@ export default function RoundDetailPage() {
     setRound(data);
 
     // Check if returning visitor
-    const savedId = localStorage.getItem(`teetime_guest_${id}`);
+    const savedId = localStorage.getItem(`gowf_guest_${id}`);
     if (savedId && data.guests) {
       const existing = data.guests.find(g => g.id === savedId);
       if (existing) {
@@ -83,7 +83,7 @@ export default function RoundDetailPage() {
       const guest = updated.guests.find(g => g.name === rsvpName.trim());
       if (guest) {
         setMyGuestId(guest.id);
-        localStorage.setItem(`teetime_guest_${id}`, guest.id);
+        localStorage.setItem(`gowf_guest_${id}`, guest.id);
       }
     }
   }
