@@ -1,34 +1,45 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Plus, CalendarDays, Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();
-
-  const links = [
-    { to: '/', label: 'Home' },
-    { to: '/analyze', label: 'Swing Analysis' },
-    { to: '/pros', label: 'Pro Golfers' },
-    { to: '/tools', label: 'Tools' },
-    { to: '/blog', label: 'Blog' },
-  ];
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <nav className="navbar">
-      <div className="navbar-container">
-        <Link to="/" className="navbar-brand">
-          <span className="navbar-logo">3D</span>
-          <span className="navbar-title">SwingAnalysis</span>
+      <div className="navbar-inner">
+        <Link to="/" className="navbar-logo">
+          <span className="logo-icon">&#9971;</span>
+          <span className="logo-text">Tee Time</span>
         </Link>
-        <div className="navbar-links">
-          {links.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`navbar-link ${location.pathname === link.to ? 'navbar-link--active' : ''}`}
-            >
-              {link.label}
-            </Link>
-          ))}
+
+        <div className={`navbar-links ${menuOpen ? 'open' : ''}`}>
+          <Link
+            to="/my-rounds"
+            className={`nav-link ${location.pathname === '/my-rounds' ? 'active' : ''}`}
+            onClick={() => setMenuOpen(false)}
+          >
+            <CalendarDays size={18} />
+            My Rounds
+          </Link>
+          <Link
+            to="/create"
+            className="nav-link nav-cta"
+            onClick={() => setMenuOpen(false)}
+          >
+            <Plus size={18} />
+            Create Round
+          </Link>
         </div>
+
+        <button
+          className="navbar-menu-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
     </nav>
   );
